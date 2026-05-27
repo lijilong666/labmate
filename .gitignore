@@ -216,3 +216,36 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# LabMate local data
+data/
+papers/
+datasets/
+
+# LabMate RAG storage
+paper_rag/storage/
+!paper_rag/storage/
+paper_rag/storage/*
+!paper_rag/storage/.gitignore
+!paper_rag/storage/.gitkeep
+storage/
+!paper_rag/storage/
+!paper_rag/storage/.gitignore
+!paper_rag/storage/.gitkeep
+vector_store/
+*.faiss
+*.pkl
+
+# LabMate experiment outputs
+runs/
+logs/
+outputs/
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+*.log
+
+# LabMate secrets
+.env
+*.key
