@@ -221,6 +221,7 @@ __marimo__/
 data/
 papers/
 datasets/
+*.pdf
 
 # LabMate RAG storage
 paper_rag/storage/
