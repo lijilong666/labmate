@@ -56,6 +56,8 @@ def normalize_card(card: dict[str, Any]) -> dict[str, Any]:
     normalized: dict[str, Any] = {}
     for field in COMPARISON_FIELDS:
         value = card.get(field, [] if field in {"method_keywords", "datasets", "metrics", "baselines"} else "")
+        if field == "title" and not value:
+            value = card.get("title_guess", "")
         if field in {"method_keywords", "datasets", "metrics", "baselines"}:
             normalized[field] = normalize_list(value)
         else:

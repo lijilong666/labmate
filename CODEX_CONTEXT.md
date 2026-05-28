@@ -43,7 +43,7 @@ The `paper_rag` module should eventually support:
 - Multi-paper comparison.
 - Simple Python APIs for future use by `experiment_agent`.
 
-Current implemented `paper_rag` capabilities include ingestion, FAISS index building, vector search, evidence-based QA, heuristic paper cards, LLM-assisted paper card enrichment, metadata search, rule-based query routing, exact query cache, topic cache, and metadata-based multi-paper comparison.
+Current implemented `paper_rag` capabilities include ingestion, FAISS index building, vector search, evidence-based QA, heuristic paper cards, LLM-assisted paper card enrichment, metadata search, rule-based query routing, exact query cache, topic cache, metadata-based multi-paper comparison, and LLM-assisted comparison summaries over paper cards.
 
 ## `paper_rag` Storage
 

@@ -78,6 +78,16 @@ The current development priority is `paper_rag`. The later module, `experiment_a
 - Supports Markdown and JSON output, plus optional file output.
 - Does not call an LLM, load embeddings, load FAISS, use topic cache, or perform semantic matching.
 
+### Stage 7B: LLM-Assisted Multi-Paper Comparison Summary
+
+- Implemented `paper_rag/scripts/compare_papers_llm.py`.
+- Added `compare_papers_with_llm` for natural-language comparison summaries over selected paper cards.
+- Reuses Stage 7A filtering and normalization logic.
+- Uses only compact paper-card fields and the existing OpenAI-compatible LLM client.
+- Does not read PDFs, read chunks, load embeddings, load FAISS, use topic cache, perform semantic matching, or provide chunk-level citations.
+- Testing confirmed that it can filter paper cards and generate LLM-assisted multi-paper comparison summaries.
+- Known metadata quality issue: some paper cards still contain weak `title` / `title_guess` values from arXiv-style filenames or raw PDF filenames, such as `2412.08197v1` for SAFIRE (p000005) and `2504.05224v1` for Re-MTKD (p000006). This affects readability of `compare_papers` and `compare_papers_llm` outputs, but it is a paper-card metadata cleanup issue rather than a Stage 7B comparison-logic issue.
+
 ### CLI Stability Fixes
 
 - Added UTF-8 stdout/stderr configuration for result-printing CLI entry points.
@@ -109,8 +119,13 @@ The current development priority is `paper_rag`. The later module, `experiment_a
 
 ## Recommended Next Stages
 
-- Stage 7B: Evidence-grounded multi-paper synthesis.
+- Stage 7C: Evidence-grounded multi-paper synthesis.
   - Retrieve supporting chunks and use the existing LLM client only after the structured comparison path is stable.
+- Metadata cleanup for paper cards.
+  - Improve title extraction before relying on comparison outputs for reports.
+  - Prefer titles extracted from the PDF first page or enriched LLM cards.
+  - Optionally support manual title overrides for problematic papers.
+  - Re-run cleanup or enrichment for cards whose `title_guess` matches filename-like patterns such as `2412.08197v1`, `2504.05224v1`, or raw PDF filenames.
 - Stage 8: Public API cleanup and simple CLI / UI.
   - Keep script entry points under `paper_rag/scripts/`.
   - Keep core logic under `paper_rag/src/paper_rag/`.
@@ -125,6 +140,7 @@ The current development priority is `paper_rag`. The later module, `experiment_a
   - `paper_query(...)`
   - `get_topic_summary(...)`
   - `compare_papers(...)`
+  - `compare_papers_with_llm(...)`
 - Return structured records where possible so experiment workflows can reuse paper ids, datasets, metrics, baselines, limitations, citations, and source chunks.
 - Do not introduce LangGraph, LangChain, or experiment lifecycle state into `paper_rag`.
 - Store experiment analysis records on the `experiment_agent` side, with references back to RAG sources when needed.
