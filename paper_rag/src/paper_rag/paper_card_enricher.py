@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from paper_rag.llm_client import OpenAICompatibleClient
+from paper_rag.llm_client import DEFAULT_LLM_TIMEOUT, OpenAICompatibleClient
 from paper_rag.paper_cards import DEFAULT_PAPER_CARDS_PATH
 
 
@@ -261,6 +261,7 @@ def enrich_paper_cards(
     only_missing: bool = False,
     llm_model: str | None = None,
     llm_base_url: str | None = None,
+    llm_timeout: float = DEFAULT_LLM_TIMEOUT,
 ) -> tuple[int, int]:
     if limit is not None and limit < 0:
         raise ValueError("limit must be greater than or equal to 0.")
@@ -269,7 +270,7 @@ def enrich_paper_cards(
     chunks = load_jsonl(chunks_path)
     chunks_by_paper = group_chunks_by_paper(chunks)
     selected_ids = select_cards(cards, paper_id=paper_id, limit=limit)
-    client = OpenAICompatibleClient.from_env(model=llm_model, base_url=llm_base_url)
+    client = OpenAICompatibleClient.from_env(model=llm_model, base_url=llm_base_url, timeout=llm_timeout)
 
     processed = 0
     failed = 0
@@ -305,6 +306,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--only_missing", action="store_true", help="Do not overwrite non-empty fields.")
     parser.add_argument("--llm_model", default=None, help="Override LABMATE_LLM_MODEL.")
     parser.add_argument("--llm_base_url", default=None, help="Override LABMATE_LLM_BASE_URL.")
+    parser.add_argument("--llm_timeout", type=float, default=DEFAULT_LLM_TIMEOUT, help="LLM request timeout in seconds.")
     return parser
 
 
@@ -322,6 +324,7 @@ def main(argv: list[str] | None = None) -> int:
             only_missing=args.only_missing,
             llm_model=args.llm_model,
             llm_base_url=args.llm_base_url,
+            llm_timeout=args.llm_timeout,
         )
     except Exception as exc:  # noqa: BLE001 - CLI should show concise actionable failures.
         parser.exit(status=1, message=f"Error: {exc}\n")
@@ -333,4 +336,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

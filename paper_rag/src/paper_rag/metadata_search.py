@@ -43,6 +43,7 @@ def search_paper_cards(
     keyword: str | None = None,
     dataset: str | None = None,
     metric: str | None = None,
+    baseline: str | None = None,
     paper_id: str | None = None,
 ) -> list[dict[str, Any]]:
     cards = load_paper_cards(cards_path)
@@ -57,6 +58,7 @@ def search_paper_cards(
             continue
         if keyword and not (
             list_contains(card.get("method_keywords"), keyword)
+            or list_contains(card.get("baselines"), keyword)
             or text_contains(card.get("title"), keyword)
             or text_contains(card.get("title_guess"), keyword)
             or text_contains(card.get("summary"), keyword)
@@ -65,6 +67,8 @@ def search_paper_cards(
         if dataset and not list_contains(card.get("datasets"), dataset):
             continue
         if metric and not list_contains(card.get("metrics"), metric):
+            continue
+        if baseline and not list_contains(card.get("baselines"), baseline):
             continue
 
         results.append(card)
@@ -91,6 +95,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--keyword", default=None, help="Filter by method keyword or title text.")
     parser.add_argument("--dataset", default=None, help="Filter by dataset name.")
     parser.add_argument("--metric", default=None, help="Filter by metric name.")
+    parser.add_argument("--baseline", default=None, help="Filter by baseline name.")
     parser.add_argument("--paper_id", default=None, help="Filter by paper id, for example p000001.")
     return parser
 
@@ -107,6 +112,7 @@ def main(argv: list[str] | None = None) -> int:
             keyword=args.keyword,
             dataset=args.dataset,
             metric=args.metric,
+            baseline=args.baseline,
             paper_id=args.paper_id,
         )
     except Exception as exc:  # noqa: BLE001 - CLI should show concise actionable failures.
@@ -124,4 +130,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
