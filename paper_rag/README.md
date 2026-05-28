@@ -1,6 +1,6 @@
 # `paper_rag`
 
-`paper_rag` is the first core LabMate module. It provides local research paper ingestion, FAISS index building, vector search, and basic evidence-grounded question answering.
+`paper_rag` is the first core LabMate module. It provides local research paper ingestion, FAISS index building, vector search, heuristic paper cards, metadata search, and basic evidence-grounded question answering.
 
 ## Goal
 
@@ -19,7 +19,7 @@ The full MVP should support:
 
 ## Current Implementation
 
-The current implementation includes PDF inventory scanning, text ingestion, local FAISS index building, vector search, and basic paper QA through an OpenAI-compatible LLM API.
+The current implementation includes PDF inventory scanning, text ingestion, local FAISS index building, vector search, heuristic paper cards, metadata search, and basic paper QA through an OpenAI-compatible LLM API.
 
 It can:
 
@@ -32,6 +32,8 @@ It can:
 - Build a local FAISS vector index from `chunks.jsonl` using sentence-transformers.
 - Save chunk metadata alongside the FAISS index for later retrieval.
 - Search indexed chunks with a query embedding and return ranked source chunks.
+- Generate heuristic `paper_cards.jsonl` from the paper inventory.
+- Search paper cards by metadata such as year, venue, keyword, dataset, metric, or paper id.
 - Answer questions using retrieved chunks as evidence and append citations.
 
 ## CLI Usage
@@ -122,6 +124,56 @@ results = search_papers(
     model_name="/path/to/local/bge-small-en-v1.5",
 )
 ```
+
+### Generate Paper Cards
+
+Stage 5A paper cards are heuristic and do not call an LLM. Fields such as `authors`, `task`, `method_keywords`, `datasets`, `metrics`, `baselines`, `summary`, and `limitations` may be empty until richer extraction is added.
+
+Generate cards from the inventory:
+
+```bash
+python paper_rag/scripts/generate_paper_cards.py \
+  --inventory paper_rag/storage/paper_inventory.csv \
+  --output paper_rag/storage/paper_cards.jsonl
+```
+
+Use `--limit` for quick tests:
+
+```bash
+python paper_rag/scripts/generate_paper_cards.py \
+  --inventory paper_rag/storage/paper_inventory.csv \
+  --output paper_rag/storage/paper_cards.jsonl \
+  --limit 5
+```
+
+The heuristic generator estimates:
+
+- `paper_id`, `source_file`, `file_name`, and `parent_dir` from the inventory.
+- `year` and `venue` from parent directory and file name patterns.
+- `title_guess` from a cleaned PDF file name.
+- `title` as the same value as `title_guess`.
+
+### Metadata Search
+
+Search paper cards without vector retrieval or LLM calls:
+
+```bash
+python paper_rag/scripts/metadata_search.py \
+  --cards paper_rag/storage/paper_cards.jsonl \
+  --year 2025 \
+  --venue CVPR
+```
+
+Supported filters:
+
+- `--year 2025`
+- `--venue CVPR`
+- `--keyword frequency`
+- `--dataset CASIA`
+- `--metric F1`
+- `--paper_id p000001`
+
+In Stage 5A, dataset, metric, and method keyword fields are often empty, so those filters may return no results. That is expected for the heuristic version.
 
 ### Ask Papers
 
@@ -222,6 +274,27 @@ print(result["answer"])
 - `index.faiss`: local FAISS index.
 - `metadata.jsonl`: chunk metadata aligned with FAISS vector ids.
 - `manifest.json`: index build metadata.
+
+`paper_cards.jsonl` fields:
+
+- `paper_id`
+- `title`
+- `title_guess`
+- `year`
+- `venue`
+- `authors`
+- `source_file`
+- `file_name`
+- `parent_dir`
+- `task`
+- `method_keywords`
+- `datasets`
+- `metrics`
+- `baselines`
+- `summary`
+- `limitations`
+- `status`
+- `extraction_mode`
 
 ## Directory Layout
 
