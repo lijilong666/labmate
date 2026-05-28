@@ -35,6 +35,7 @@ It can:
 - Generate heuristic `paper_cards.jsonl` from the paper inventory.
 - Enrich paper cards with LLM-extracted fields from limited paper chunks.
 - Search paper cards by metadata such as year, venue, keyword, dataset, metric, or paper id.
+- Compare multiple papers using paper-card metadata without calling an LLM.
 - Answer questions using retrieved chunks as evidence and append citations.
 - Route user queries through metadata search, vector search, or evidence-based QA with exact query caching.
 
@@ -111,7 +112,7 @@ python paper_rag/scripts/search_papers.py \
   --query "frequency-domain features" \
   --top_k 5 \
   --index_dir paper_rag/storage/vector_store \
-  --model_name D:\Work\models\bge-small-en-v1.5
+  --model_name C:\path\to\bge-small-en-v1.5
 ```
 
 Python API:
@@ -177,6 +178,64 @@ Supported filters:
 - `--paper_id p000001`
 
 In Stage 5A, dataset, metric, and method keyword fields are often empty, so those filters may return no results. That is expected for the heuristic version.
+
+### Compare Papers
+
+Stage 7A compares paper cards using metadata only. It does not call an LLM, load embeddings, load FAISS, use topic cache, or perform semantic matching.
+
+Check CLI help:
+
+```bash
+python paper_rag/scripts/compare_papers.py --help
+```
+
+Filter by keyword:
+
+```bash
+python paper_rag/scripts/compare_papers.py --keyword LoRA --format markdown --limit 10
+```
+
+Filter by year:
+
+```bash
+python paper_rag/scripts/compare_papers.py --year 2025 --format markdown --limit 10
+```
+
+Filter by dataset:
+
+```bash
+python paper_rag/scripts/compare_papers.py --dataset CASIA --format markdown --limit 10
+```
+
+Filter by multiple paper ids:
+
+```bash
+python paper_rag/scripts/compare_papers.py --paper_id p000001 p000060 --format markdown
+```
+
+JSON output:
+
+```bash
+python paper_rag/scripts/compare_papers.py --keyword LoRA --format json --limit 5
+```
+
+Write Markdown output to a local file:
+
+```bash
+python paper_rag/scripts/compare_papers.py --keyword LoRA --format markdown --limit 10 --output paper_rag/storage/comparisons/lora_papers.md
+```
+
+Supported filters:
+
+- `--keyword`: searches `title`, `task`, `method_keywords`, `datasets`, `metrics`, `baselines`, `summary`, and `limitations`.
+- `--dataset`: searches `datasets`.
+- `--metric`: searches `metrics`.
+- `--year`: matches `year`.
+- `--venue`: searches `venue`.
+- `--paper_id`: accepts one or more paper ids.
+- `--limit`: limits the number of returned records.
+
+Use `--verbose` with Markdown output to include `baselines`, `summary`, and `limitations` in the table. JSON output always includes the full comparison fields.
 
 ### Enrich Paper Cards
 
@@ -267,7 +326,7 @@ python paper_rag/scripts/ask_papers.py \
   --question "What are common frequency-domain methods in image manipulation localization?" \
   --top_k 5 \
   --index_dir paper_rag/storage/vector_store \
-  --model_name D:\Work\models\bge-small-en-v1.5
+  --model_name C:\path\to\bge-small-en-v1.5
 ```
 
 Optional arguments:
@@ -336,7 +395,7 @@ python paper_rag/scripts/paper_query.py \
   --mode auto \
   --cards paper_rag/storage/paper_cards_enriched.jsonl \
   --index_dir paper_rag/storage/vector_store \
-  --model_name D:\Work\models\bge-small-en-v1.5
+  --model_name C:\path\to\bge-small-en-v1.5
 ```
 
 Exact query cache:
@@ -366,7 +425,7 @@ python paper_rag/scripts/topic_cache.py ^
   --query "Explain what frequency-domain features are used for in image manipulation localization." ^
   --cache_path paper_rag/storage/topic_cache.jsonl ^
   --index_dir paper_rag/storage/vector_store ^
-  --model_name D:\Work\models\bge-small-en-v1.5 ^
+  --model_name C:\path\to\bge-small-en-v1.5 ^
   --cache_dir paper_rag/model_cache ^
   --top_k 8 ^
   --answer_language en ^
@@ -388,7 +447,7 @@ python paper_rag/scripts/topic_cache.py ^
   --query "Explain what frequency-domain features are used for in image manipulation localization." ^
   --cache_path paper_rag/storage/topic_cache.jsonl ^
   --index_dir paper_rag/storage/vector_store ^
-  --model_name D:\Work\models\bge-small-en-v1.5 ^
+  --model_name C:\path\to\bge-small-en-v1.5 ^
   --top_k 8 ^
   --answer_language en ^
   --rewrite_query false ^

@@ -70,6 +70,19 @@ The current development priority is `paper_rag`. The later module, `experiment_a
 - On cache miss or `--force_refresh`, the implementation reuses existing vector search and evidence-grounded QA generation.
 - On cache hit, it returns the stored topic summary without search or LLM calls.
 
+### Stage 7A: Metadata-Based Multi-Paper Comparison
+
+- Implemented `paper_rag/scripts/compare_papers.py`.
+- Added `compare_papers` as a metadata-only comparison API over paper cards.
+- Supports filters for keyword, dataset, metric, year, venue, paper id, and limit.
+- Supports Markdown and JSON output, plus optional file output.
+- Does not call an LLM, load embeddings, load FAISS, use topic cache, or perform semantic matching.
+
+### CLI Stability Fixes
+
+- Added UTF-8 stdout/stderr configuration for result-printing CLI entry points.
+- This avoids Windows console `UnicodeEncodeError` failures when retrieved paper chunks contain symbols or non-GBK characters.
+
 ## Encoding Notes
 
 - CSV inventory reads/writes are explicit: `encoding="utf-8-sig"`.
@@ -96,12 +109,30 @@ The current development priority is `paper_rag`. The later module, `experiment_a
 
 ## Recommended Next Stages
 
-- Stage 7: Multi-paper comparison.
+- Stage 7B: Evidence-grounded multi-paper synthesis.
+  - Retrieve supporting chunks and use the existing LLM client only after the structured comparison path is stable.
 - Stage 8: Public API cleanup and simple CLI / UI.
+  - Keep script entry points under `paper_rag/scripts/`.
+  - Keep core logic under `paper_rag/src/paper_rag/`.
+
+## Future `experiment_agent` Preparation
+
+- `paper_rag` should remain a lightweight literature knowledge service.
+- Future `experiment_agent` workflows should call Python APIs directly instead of shelling out to scripts.
+- Stable public APIs to preserve or refine:
+  - `search_papers(...)`
+  - `ask_papers(...)`
+  - `paper_query(...)`
+  - `get_topic_summary(...)`
+  - `compare_papers(...)`
+- Return structured records where possible so experiment workflows can reuse paper ids, datasets, metrics, baselines, limitations, citations, and source chunks.
+- Do not introduce LangGraph, LangChain, or experiment lifecycle state into `paper_rag`.
+- Store experiment analysis records on the `experiment_agent` side, with references back to RAG sources when needed.
 
 ## Environment Notes
 
-- Windows conda env path: `D:\Work\conda_envs\labmate`
+- Personal Windows conda env path: `D:\Work\conda_envs\labmate`
+- Personal Windows Python executable: `D:\Work\conda_envs\labmate\python.exe`
 - Recommended Python version: 3.10
 - Local embedding model path used during testing: `D:\Work\models\bge-small-en-v1.5`
 - Avoid using Anaconda base if possible.
@@ -110,7 +141,23 @@ The current development priority is `paper_rag`. The later module, `experiment_a
 Example:
 
 ```bash
-python -c "import sys; print(sys.executable)"
+D:\Work\conda_envs\labmate\python.exe -c "import sys; print(sys.executable)"
+```
+
+Personal Stage 6B topic cache test command:
+
+```bat
+D:\Work\conda_envs\labmate\python.exe paper_rag\scripts\topic_cache.py ^
+  --topic frequency_domain_features ^
+  --query "Explain what frequency-domain features are used for in image manipulation localization." ^
+  --cache_path paper_rag/storage/topic_cache.jsonl ^
+  --index_dir paper_rag/storage/vector_store ^
+  --model_name D:\Work\models\bge-small-en-v1.5 ^
+  --cache_dir paper_rag/model_cache ^
+  --top_k 8 ^
+  --answer_language en ^
+  --rewrite_query false ^
+  --llm_timeout 60
 ```
 
 ## Development Workflow
