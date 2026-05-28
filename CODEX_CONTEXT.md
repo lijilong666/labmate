@@ -37,10 +37,13 @@ The `paper_rag` module should eventually support:
 - Vector retrieval.
 - Structured paper card generation.
 - Metadata-first search.
+- Exact query cache.
 - Topic-level knowledge cache for frequently queried knowledge.
 - Basic paper question answering with citations.
 - Multi-paper comparison.
 - Simple Python APIs for future use by `experiment_agent`.
+
+Current implemented `paper_rag` capabilities include ingestion, FAISS index building, vector search, evidence-based QA, heuristic paper cards, LLM-assisted paper card enrichment, metadata search, rule-based query routing, exact query cache, topic cache, and metadata-based multi-paper comparison.
 
 ## `paper_rag` Storage
 
@@ -113,6 +116,8 @@ Experiment analysis records should be stored on the `experiment_agent` side, not
 
 `paper_rag` should store stable literature knowledge. Experiment analysis should store references to RAG sources when RAG evidence is used.
 
+For future integration, keep `paper_rag` callable through small Python functions with structured inputs and outputs. Scripts under `paper_rag/scripts/` are for human CLI usage; the future LangGraph-based experiment workflow should call core APIs from `paper_rag/src/paper_rag/`.
+
 ## Deployment Assumptions
 
 - The main runtime environment is a remote Linux server.
@@ -139,8 +144,8 @@ Experiment analysis records should be stored on the `experiment_agent` side, not
 
 ### Stage 2: `paper_rag` Enhancement
 
-- Add `topic_cache`.
-- Add `query_cache`.
+- Add `topic_cache`. Done.
+- Add `query_cache`. Done.
 - Add multi-paper comparison.
 - Add a simple CLI or Streamlit UI.
 

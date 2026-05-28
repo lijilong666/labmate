@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 from typing import Any
 
+from paper_rag.cli_io import configure_utf8_stdio
 from paper_rag.indexing import DEFAULT_EMBEDDING_MODEL, DEFAULT_MODEL_CACHE_DIR
 from paper_rag.llm_client import DEFAULT_LLM_PROVIDER, DEFAULT_LLM_TIMEOUT, OpenAICompatibleClient
 from paper_rag.search import DEFAULT_INDEX_DIR, search_papers
@@ -211,6 +212,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_utf8_stdio()
     parser = build_arg_parser()
     args = parser.parse_args(argv)
 

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from paper_rag.cli_io import configure_utf8_stdio
 from paper_rag.paper_cards import DEFAULT_PAPER_CARDS_PATH
 
 
@@ -101,6 +102,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_utf8_stdio()
     parser = build_arg_parser()
     args = parser.parse_args(argv)
 

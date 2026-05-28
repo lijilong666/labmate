@@ -2,6 +2,7 @@
 
 __all__ = [
     "ask_papers",
+    "compare_papers",
     "enrich_paper_cards",
     "generate_paper_cards",
     "get_topic_summary",
@@ -17,6 +18,10 @@ def __getattr__(name: str):
         from paper_rag.qa import ask_papers
 
         return ask_papers
+    if name == "compare_papers":
+        from paper_rag.compare_papers import compare_papers
+
+        return compare_papers
     if name == "enrich_paper_cards":
         from paper_rag.paper_card_enricher import enrich_paper_cards
 
