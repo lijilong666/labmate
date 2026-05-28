@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from paper_rag.cli_io import configure_utf8_stdio
 from paper_rag.indexing import (
     DEFAULT_EMBEDDING_MODEL,
     DEFAULT_MODEL_CACHE_DIR,
@@ -183,6 +184,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_utf8_stdio()
     parser = build_arg_parser()
     args = parser.parse_args(argv)
 

@@ -30,7 +30,9 @@ Improve reliability and day-to-day usefulness.
 
 Target capabilities:
 
-- Better metadata handling.
+- Better metadata handling. Initial implementation is available through paper cards and LLM-assisted enrichment.
+- Exact query cache and topic cache for repeated questions.
+- Structured multi-paper comparison for experiment planning and reporting context.
 - Incremental indexing.
 - Retrieval quality checks.
 - Clear setup and troubleshooting documentation.
@@ -45,7 +47,7 @@ Target planning areas:
 - Result and log parsing.
 - Run comparison.
 - Report generation.
-- Optional links to relevant papers from `paper_rag`.
+- Direct calls into `paper_rag` APIs for related methods, datasets, metrics, baselines, limitations, and source citations.
 
 ## Phase 4: Integrated Research Assistant
 

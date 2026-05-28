@@ -16,6 +16,8 @@ Planned responsibilities:
 - Build or update a local retrieval index.
 - Answer user questions using retrieved source context.
 - Return citations that point back to source papers or chunks.
+- Provide structured metadata search, exact query cache, and topic cache.
+- Expose small Python APIs that future experiment workflows can call directly.
 
 ### `experiment_agent`
 
@@ -34,6 +36,8 @@ The two modules should remain loosely coupled.
 
 `paper_rag` helps researchers understand prior work and retrieve supporting evidence. `experiment_agent` helps researchers manage their own experiments and summarize outcomes. In future versions, `experiment_agent` may call `paper_rag` to connect experiment findings with related papers, but the initial implementation should keep each module independently usable.
 
+The boundary should stay explicit: `paper_rag` stores literature knowledge and source evidence, while `experiment_agent` stores experiment records, logs, parsed metrics, and generated reports. LangGraph orchestration, if used, belongs in `experiment_agent`, not in `paper_rag`.
+
 ## Storage Policy
 
 Runtime data should stay local and out of version control. This includes downloaded papers, extracted text caches, vector indexes, API keys, model outputs, and experiment artifacts.
@@ -51,3 +55,5 @@ The first architecture should be simple:
 - Explicit configuration files for paths and model settings.
 
 Shared abstractions should be added only after both modules need them.
+
+Current `paper_rag` public functions that should remain easy to call from other modules include `search_papers(...)`, `ask_papers(...)`, `paper_query(...)`, `get_topic_summary(...)`, and `compare_papers(...)`.
