@@ -1,6 +1,6 @@
 # `paper_rag`
 
-`paper_rag` is the first core LabMate module. It provides local research paper ingestion, FAISS index building, vector search, heuristic paper cards, metadata search, and basic evidence-grounded question answering.
+`paper_rag` is the first core LabMate module. It provides local research paper ingestion, FAISS index building, vector search, heuristic and LLM-assisted paper cards, metadata search, and basic evidence-grounded question answering.
 
 ## Goal
 
@@ -19,7 +19,7 @@ The full MVP should support:
 
 ## Current Implementation
 
-The current implementation includes PDF inventory scanning, text ingestion, local FAISS index building, vector search, heuristic paper cards, metadata search, and basic paper QA through an OpenAI-compatible LLM API.
+The current implementation includes PDF inventory scanning, text ingestion, local FAISS index building, vector search, heuristic paper cards, LLM-assisted paper card enrichment, metadata search, and basic paper QA through an OpenAI-compatible LLM API.
 
 It can:
 
@@ -33,6 +33,7 @@ It can:
 - Save chunk metadata alongside the FAISS index for later retrieval.
 - Search indexed chunks with a query embedding and return ranked source chunks.
 - Generate heuristic `paper_cards.jsonl` from the paper inventory.
+- Enrich paper cards with LLM-extracted fields from limited paper chunks.
 - Search paper cards by metadata such as year, venue, keyword, dataset, metric, or paper id.
 - Answer questions using retrieved chunks as evidence and append citations.
 
@@ -171,9 +172,61 @@ Supported filters:
 - `--keyword frequency`
 - `--dataset CASIA`
 - `--metric F1`
+- `--baseline SomeMethod`
 - `--paper_id p000001`
 
 In Stage 5A, dataset, metric, and method keyword fields are often empty, so those filters may return no results. That is expected for the heuristic version.
+
+### Enrich Paper Cards
+
+Stage 5B enriches existing paper cards with an OpenAI-compatible LLM. It reads limited chunks for each paper and asks the LLM to extract only evidence-supported metadata:
+
+- `task`
+- `method_keywords`
+- `datasets`
+- `metrics`
+- `baselines`
+- `summary`
+- `limitations`
+
+This step calls an LLM API and consumes tokens. Start with one paper or a small limit before running it on the full collection.
+
+Configure the LLM with the same environment variables used by `ask_papers`:
+
+```bash
+export LABMATE_LLM_API_KEY="your-api-key"
+export LABMATE_LLM_BASE_URL="https://api.example.com/v1"
+export LABMATE_LLM_MODEL="your-chat-model"
+```
+
+Enrich one paper:
+
+```bash
+python paper_rag/scripts/enrich_paper_cards.py \
+  --cards paper_rag/storage/paper_cards.jsonl \
+  --chunks paper_rag/storage/chunks.jsonl \
+  --output paper_rag/storage/paper_cards_enriched.jsonl \
+  --paper_id p000001
+```
+
+Small batch test:
+
+```bash
+python paper_rag/scripts/enrich_paper_cards.py \
+  --cards paper_rag/storage/paper_cards.jsonl \
+  --chunks paper_rag/storage/chunks.jsonl \
+  --output paper_rag/storage/paper_cards_enriched.jsonl \
+  --limit 3 \
+  --only_missing
+```
+
+Optional overrides:
+
+- `--llm_model`: override `LABMATE_LLM_MODEL`.
+- `--llm_base_url`: override `LABMATE_LLM_BASE_URL`.
+- `--only_missing`: fill empty fields without overwriting existing non-empty values.
+
+If an LLM response cannot be parsed as JSON, the batch continues and the card is marked with `enrichment_status="failed"` and an `enrichment_error` message.
 
 ### Ask Papers
 
