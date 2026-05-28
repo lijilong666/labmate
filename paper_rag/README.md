@@ -36,6 +36,7 @@ It can:
 - Enrich paper cards with LLM-extracted fields from limited paper chunks.
 - Search paper cards by metadata such as year, venue, keyword, dataset, metric, or paper id.
 - Answer questions using retrieved chunks as evidence and append citations.
+- Route user queries through metadata search, vector search, or evidence-based QA with exact query caching.
 
 ## CLI Usage
 
@@ -224,6 +225,7 @@ Optional overrides:
 
 - `--llm_model`: override `LABMATE_LLM_MODEL`.
 - `--llm_base_url`: override `LABMATE_LLM_BASE_URL`.
+- `--llm_timeout`: LLM request timeout in seconds. Default: `60`.
 - `--only_missing`: fill empty fields without overwriting existing non-empty values.
 
 If an LLM response cannot be parsed as JSON, the batch continues and the card is marked with `enrichment_status="failed"` and an `enrichment_error` message.
@@ -274,6 +276,7 @@ Optional arguments:
 - `--rewrite_query true|false`: when enabled, non-English questions are rewritten into an English retrieval query before vector search.
 - `--llm_model`: override `LABMATE_LLM_MODEL`.
 - `--llm_base_url`: override `LABMATE_LLM_BASE_URL`.
+- `--llm_timeout`: LLM request timeout in seconds. Default: `60`.
 
 Answers are instructed to use only retrieved chunks. If evidence is insufficient, the answer should say `evidence is insufficient`. The final output always includes citations:
 
@@ -298,6 +301,52 @@ result = ask_papers(
 )
 print(result["answer"])
 ```
+
+### Unified Paper Query
+
+`paper_query.py` is the unified entry point for paper retrieval workflows. It supports three execution modes:
+
+- `metadata`: search `paper_cards.jsonl`; does not call an LLM.
+- `search`: vector-search chunks with FAISS; does not call an LLM.
+- `answer`: call `ask_papers`; retrieves evidence and then calls an LLM.
+
+Use `--mode auto` to route by simple rules. The router does not use an LLM:
+
+- Metadata-style requests such as `which papers`, `list papers`, `find papers`, `哪些论文`, or `论文列表` prefer metadata search when filters can be extracted.
+- Search-style requests such as `search`, `find chunks`, `retrieve`, `检索`, or `查找片段` use vector search.
+- Answer-style requests such as `summarize`, `explain`, `compare`, `why`, `how`, `总结`, `解释`, `比较`, `为什么`, or `如何` use QA.
+- If routing is unclear, auto mode defaults to `answer`.
+
+Example:
+
+```bash
+python paper_rag/scripts/paper_query.py \
+  --query "which papers use LoRA?" \
+  --mode auto \
+  --cards paper_rag/storage/paper_cards_enriched.jsonl \
+  --index_dir paper_rag/storage/vector_store \
+  --model_name /path/to/local/bge-small-en-v1.5
+```
+
+On Windows, for example:
+
+```bash
+python paper_rag/scripts/paper_query.py \
+  --query "which papers use LoRA?" \
+  --mode auto \
+  --cards paper_rag/storage/paper_cards_enriched.jsonl \
+  --index_dir paper_rag/storage/vector_store \
+  --model_name D:\Work\models\bge-small-en-v1.5
+```
+
+Exact query cache:
+
+- Default cache path: `paper_rag/storage/query_cache.jsonl`.
+- Only exact query string matches are cached.
+- Metadata, search, and answer results can all be cached.
+- Use `--use_cache false` to bypass the cache.
+- Use `--llm_timeout` to limit LLM calls in `answer` mode. Default: `60` seconds.
+- `query_cache.jsonl` is under `paper_rag/storage/` and should not be committed.
 
 ## Outputs
 
@@ -348,6 +397,14 @@ print(result["answer"])
 - `limitations`
 - `status`
 - `extraction_mode`
+
+`query_cache.jsonl` fields:
+
+- `query`
+- `mode`
+- `answer`
+- `results`
+- `created_at`
 
 ## Directory Layout
 

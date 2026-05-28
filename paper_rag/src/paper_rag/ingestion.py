@@ -58,7 +58,7 @@ def load_existing_paper_ids(inventory_path: Path) -> dict[str, str]:
     if not inventory_path.exists():
         return {}
 
-    with inventory_path.open("r", encoding="utf-8", newline="") as file:
+    with inventory_path.open("r", encoding="utf-8-sig", newline="") as file:
         reader = csv.DictReader(file)
         return {
             row["source_path"]: row["paper_id"]
@@ -198,7 +198,7 @@ def iter_page_chunks(
 
 def write_inventory(rows: list[dict[str, object]], inventory_path: Path) -> None:
     inventory_path.parent.mkdir(parents=True, exist_ok=True)
-    with inventory_path.open("w", encoding="utf-8", newline="") as file:
+    with inventory_path.open("w", encoding="utf-8-sig", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=INVENTORY_FIELDS)
         writer.writeheader()
         writer.writerows(rows)

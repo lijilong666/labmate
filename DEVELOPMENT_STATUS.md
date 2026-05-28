@@ -43,6 +43,36 @@ The current development priority is `paper_rag`. The later module, `experiment_a
 - Supports `--limit` for testing.
 - Tested with 5 paper cards and year / paper id search.
 
+### Stage 5B: LLM-Assisted Paper Card Completion
+
+- Implemented `paper_rag/scripts/enrich_paper_cards.py`.
+- Added reusable OpenAI-compatible LLM client in `paper_rag/src/paper_rag/llm_client.py`.
+- Reused the shared LLM client from `ask_papers`.
+- Enriches paper cards from limited chunks instead of sending all chunks to the LLM.
+- Supports `--paper_id`, `--limit`, and `--only_missing` to control token cost.
+- Writes `enrichment_status` and `enrichment_error` per paper card.
+- Metadata search now also supports enriched fields, including baselines.
+
+### Stage 6A: Query Router and Exact Query Cache
+
+- Implemented `paper_rag/scripts/paper_query.py`.
+- Added `route_query` and `paper_query` as unified metadata / search / answer entry points.
+- Added exact-match query cache in `paper_rag/storage/query_cache.jsonl`.
+- Auto routing uses simple rules only; it does not call an LLM.
+- Cache supports metadata, vector search, and answer results.
+- Tested metadata routing and exact cache hit behavior without calling an LLM.
+
+## Encoding Notes
+
+- CSV inventory reads/writes are explicit: `encoding="utf-8-sig"`.
+- JSONL reads/writes are explicit: `encoding="utf-8"`.
+- JSON output uses `ensure_ascii=False`.
+- Existing local generated files were verified with Python, and Chinese path segments read correctly.
+- If a terminal or spreadsheet viewer still shows mojibake, regenerate local outputs with the current scripts:
+  - `paper_rag/scripts/ingest_pdfs.py`
+  - `paper_rag/scripts/generate_paper_cards.py`
+  - `paper_rag/scripts/enrich_paper_cards.py` if enriched cards are needed.
+
 ## Local Generated Files Not Committed
 
 - `data/raw_papers/`
@@ -50,13 +80,13 @@ The current development priority is `paper_rag`. The later module, `experiment_a
 - `paper_rag/storage/chunks.jsonl`
 - `paper_rag/storage/vector_store/`
 - `paper_rag/storage/paper_cards.jsonl`
+- `paper_rag/storage/paper_cards_enriched.jsonl`
+- `paper_rag/storage/query_cache.jsonl`
 - `paper_rag/model_cache/`
 - `.env`
 
 ## Recommended Next Stages
 
-- Stage 5B: LLM-assisted paper card completion.
-- Stage 6: Query router and cache.
 - Stage 7: Multi-paper comparison.
 - Stage 8: Public API cleanup and simple CLI / UI.
 
