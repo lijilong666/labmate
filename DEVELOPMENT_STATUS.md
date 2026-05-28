@@ -62,6 +62,14 @@ The current development priority is `paper_rag`. The later module, `experiment_a
 - Cache supports metadata, vector search, and answer results.
 - Tested metadata routing and exact cache hit behavior without calling an LLM.
 
+### Stage 6B: Topic Cache
+
+- Implemented `paper_rag/scripts/topic_cache.py` and `get_topic_summary` for topic cache access.
+- Added topic-level exact cache storage in `paper_rag/storage/topic_cache.jsonl`.
+- Cache lookup is by exact topic key only; semantic cache, automatic topic mining, and LLM routing are intentionally not included.
+- On cache miss or `--force_refresh`, the implementation reuses existing vector search and evidence-grounded QA generation.
+- On cache hit, it returns the stored topic summary without search or LLM calls.
+
 ## Encoding Notes
 
 - CSV inventory reads/writes are explicit: `encoding="utf-8-sig"`.
@@ -82,6 +90,7 @@ The current development priority is `paper_rag`. The later module, `experiment_a
 - `paper_rag/storage/paper_cards.jsonl`
 - `paper_rag/storage/paper_cards_enriched.jsonl`
 - `paper_rag/storage/query_cache.jsonl`
+- `paper_rag/storage/topic_cache.jsonl`
 - `paper_rag/model_cache/`
 - `.env`
 

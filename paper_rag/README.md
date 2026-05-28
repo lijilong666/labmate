@@ -348,6 +348,72 @@ Exact query cache:
 - Use `--llm_timeout` to limit LLM calls in `answer` mode. Default: `60` seconds.
 - `query_cache.jsonl` is under `paper_rag/storage/` and should not be committed.
 
+### Topic Cache
+
+`topic_cache.py` stores stable topic-level RAG summaries for repeated domain questions. It uses exact topic keys only. It does not implement semantic cache, automatic topic mining, or LLM-based routing.
+
+Check CLI help:
+
+```bat
+python paper_rag/scripts/topic_cache.py --help
+```
+
+Recommended Windows Command Prompt test command:
+
+```bat
+python paper_rag/scripts/topic_cache.py ^
+  --topic frequency_domain_features ^
+  --query "Explain what frequency-domain features are used for in image manipulation localization." ^
+  --cache_path paper_rag/storage/topic_cache.jsonl ^
+  --index_dir paper_rag/storage/vector_store ^
+  --model_name D:\Work\models\bge-small-en-v1.5 ^
+  --cache_dir paper_rag/model_cache ^
+  --top_k 8 ^
+  --answer_language en ^
+  --rewrite_query false ^
+  --llm_timeout 60
+```
+
+Expected behavior:
+
+- First run: prints `Cache hit: False`, retrieves evidence, calls the configured LLM, and writes `paper_rag/storage/topic_cache.jsonl`.
+- Second run with the same `--topic`: prints `Cache hit: True` and returns the cached answer without calling the LLM/API.
+- Add `--force_refresh` to refresh an existing topic summary.
+
+Force refresh example:
+
+```bat
+python paper_rag/scripts/topic_cache.py ^
+  --topic frequency_domain_features ^
+  --query "Explain what frequency-domain features are used for in image manipulation localization." ^
+  --cache_path paper_rag/storage/topic_cache.jsonl ^
+  --index_dir paper_rag/storage/vector_store ^
+  --model_name D:\Work\models\bge-small-en-v1.5 ^
+  --top_k 8 ^
+  --answer_language en ^
+  --rewrite_query false ^
+  --llm_timeout 60 ^
+  --force_refresh
+```
+
+Supported topic cache arguments:
+
+- `--topic`
+- `--query`
+- `--cache_path`
+- `--index_dir`
+- `--model_name`
+- `--cache_dir`
+- `--top_k`
+- `--answer_language`
+- `--rewrite_query`
+- `--force_refresh`
+- `--llm_timeout`
+- `--llm_base_url`
+- `--llm_model`
+
+`topic_cache.jsonl` is under `paper_rag/storage/` and should not be committed.
+
 ## Outputs
 
 `paper_inventory.csv` fields:
@@ -405,6 +471,18 @@ Exact query cache:
 - `answer`
 - `results`
 - `created_at`
+
+`topic_cache.jsonl` fields:
+
+- `topic`
+- `query`
+- `answer_language`
+- `answer`
+- `sources`
+- `created_at`
+- `updated_at`
+- `model`
+- `top_k`
 
 ## Directory Layout
 

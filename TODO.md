@@ -24,6 +24,7 @@
 - [ ] Add evaluation examples for retrieval quality.
 - [ ] Support incremental indexing.
 - [ ] Add clearer error handling and logging.
+- [x] Add topic-level cache for reusable RAG summaries.
 
 ## Phase 3: `experiment_agent` Planning
 
