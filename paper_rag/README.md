@@ -1,6 +1,6 @@
 # `paper_rag`
 
-`paper_rag` is the first core LabMate module. It provides local research paper ingestion, FAISS index building, and vector search now, and will later add question answering.
+`paper_rag` is the first core LabMate module. It provides local research paper ingestion, FAISS index building, vector search, and basic evidence-grounded question answering.
 
 ## Goal
 
@@ -19,7 +19,7 @@ The full MVP should support:
 
 ## Current Implementation
 
-The current implementation includes PDF inventory scanning, text ingestion, local FAISS index building, and vector search. It does not call an LLM.
+The current implementation includes PDF inventory scanning, text ingestion, local FAISS index building, vector search, and basic paper QA through an OpenAI-compatible LLM API.
 
 It can:
 
@@ -32,6 +32,7 @@ It can:
 - Build a local FAISS vector index from `chunks.jsonl` using sentence-transformers.
 - Save chunk metadata alongside the FAISS index for later retrieval.
 - Search indexed chunks with a query embedding and return ranked source chunks.
+- Answer questions using retrieved chunks as evidence and append citations.
 
 ## CLI Usage
 
@@ -120,6 +121,77 @@ results = search_papers(
     index_dir="paper_rag/storage/vector_store",
     model_name="/path/to/local/bge-small-en-v1.5",
 )
+```
+
+### Ask Papers
+
+`ask_papers` runs retrieval first, then calls an OpenAI-compatible LLM endpoint to answer from the retrieved evidence. It does not train models or modify the vector index.
+
+Configure the LLM with environment variables:
+
+```bash
+export LABMATE_LLM_API_KEY="your-api-key"
+export LABMATE_LLM_BASE_URL="https://api.example.com/v1"
+export LABMATE_LLM_MODEL="your-chat-model"
+```
+
+On Windows Command Prompt:
+
+```bat
+set LABMATE_LLM_API_KEY=your-api-key
+set LABMATE_LLM_BASE_URL=https://api.example.com/v1
+set LABMATE_LLM_MODEL=your-chat-model
+```
+
+Run QA:
+
+```bash
+python paper_rag/scripts/ask_papers.py \
+  --question "What are common frequency-domain methods in image manipulation localization?" \
+  --top_k 5 \
+  --index_dir paper_rag/storage/vector_store \
+  --model_name /path/to/local/bge-small-en-v1.5
+```
+
+On Windows, for example:
+
+```bash
+python paper_rag/scripts/ask_papers.py \
+  --question "What are common frequency-domain methods in image manipulation localization?" \
+  --top_k 5 \
+  --index_dir paper_rag/storage/vector_store \
+  --model_name D:\Work\models\bge-small-en-v1.5
+```
+
+Optional arguments:
+
+- `--answer_language auto|zh|en`: `auto` follows the question language.
+- `--rewrite_query true|false`: when enabled, non-English questions are rewritten into an English retrieval query before vector search.
+- `--llm_model`: override `LABMATE_LLM_MODEL`.
+- `--llm_base_url`: override `LABMATE_LLM_BASE_URL`.
+
+Answers are instructed to use only retrieved chunks. If evidence is insufficient, the answer should say `evidence is insufficient`. The final output always includes citations:
+
+```text
+Sources:
+[1] paper.pdf, page 4, chunk_id=...
+[2] another_paper.pdf, page 7, chunk_id=...
+```
+
+Python API:
+
+```python
+from paper_rag import ask_papers
+
+result = ask_papers(
+    question="哪些论文使用了频域特征？",
+    top_k=5,
+    index_dir="paper_rag/storage/vector_store",
+    model_name="/path/to/local/bge-small-en-v1.5",
+    answer_language="auto",
+    rewrite_query=True,
+)
+print(result["answer"])
 ```
 
 ## Outputs
