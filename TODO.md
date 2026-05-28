@@ -27,6 +27,12 @@
 - [x] Add exact query cache for repeated queries.
 - [x] Add topic-level cache for reusable RAG summaries.
 - [x] Add structured multi-paper comparison for future experiment-agent use.
+- [x] Add LLM-assisted multi-paper comparison summary over paper cards.
+- [ ] Add metadata cleanup for weak paper titles and filename-like `title_guess` values.
+- [ ] Prefer titles extracted from the PDF first page or enriched LLM card metadata.
+- [ ] Optionally support manual title overrides for problematic papers.
+- [ ] Re-run cleanup or enrichment for cards whose title looks like an arXiv id or raw PDF filename.
+- [ ] Add evidence-grounded multi-paper synthesis with chunk-level citations.
 
 ## Phase 3: `experiment_agent` Planning
 

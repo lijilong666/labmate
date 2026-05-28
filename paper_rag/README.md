@@ -237,6 +237,72 @@ Supported filters:
 
 Use `--verbose` with Markdown output to include `baselines`, `summary`, and `limitations` in the table. JSON output always includes the full comparison fields.
 
+### LLM-Assisted Paper Comparison Summary
+
+Stage 7B generates a natural-language comparison summary from selected paper cards. It calls the configured LLM/API, but it still does not load embeddings, load FAISS, read PDFs, read `chunks.jsonl`, use topic cache, or perform semantic paper matching. The first version is based only on available paper-card metadata and does not provide chunk-level citations.
+
+Known limitation: comparison readability depends on paper-card metadata quality. If `title` or `title_guess` still comes from an arXiv-style filename or raw PDF filename, the comparison output may show weak titles. This is a metadata cleanup issue, not a comparison logic issue.
+
+Configure the LLM with the same environment variables used by `ask_papers`:
+
+```bash
+export LABMATE_LLM_API_KEY="your-api-key"
+export LABMATE_LLM_BASE_URL="https://api.example.com/v1"
+export LABMATE_LLM_MODEL="your-chat-model"
+```
+
+Check CLI help:
+
+```bash
+python paper_rag/scripts/compare_papers_llm.py --help
+```
+
+Summarize papers selected by keyword:
+
+```bash
+python paper_rag/scripts/compare_papers_llm.py --keyword manipulation --limit 5 --answer_language en --llm_timeout 60
+```
+
+Summarize papers selected by year:
+
+```bash
+python paper_rag/scripts/compare_papers_llm.py --year 2025 --limit 5 --answer_language en --llm_timeout 60
+```
+
+Use a custom comparison question:
+
+```bash
+python paper_rag/scripts/compare_papers_llm.py --keyword localization --limit 5 --question "Compare these papers in terms of task setting, method design, datasets, metrics, and limitations." --answer_language en --llm_timeout 60
+```
+
+Chinese summary:
+
+```bash
+python paper_rag/scripts/compare_papers_llm.py --keyword localization --limit 5 --question "比较这些论文在任务设定、方法设计、数据集、评价指标和局限性上的差异。" --answer_language zh --llm_timeout 60
+```
+
+Write the Markdown summary to a local file:
+
+```bash
+python paper_rag/scripts/compare_papers_llm.py --year 2025 --limit 5 --answer_language en --output paper_rag/storage/comparisons/compare_2025.md --llm_timeout 60
+```
+
+The LLM prompt includes only compact paper-card fields:
+
+- `paper_id`
+- `title`
+- `year`
+- `venue`
+- `task`
+- `method_keywords`
+- `datasets`
+- `metrics`
+- `baselines`
+- `summary`
+- `limitations`
+
+The summary should reference papers by `paper_id` only and should explicitly note when information is not specified in the available paper cards.
+
 ### Enrich Paper Cards
 
 Stage 5B enriches existing paper cards with an OpenAI-compatible LLM. It reads limited chunks for each paper and asks the LLM to extract only evidence-supported metadata:

@@ -56,4 +56,4 @@ The first architecture should be simple:
 
 Shared abstractions should be added only after both modules need them.
 
-Current `paper_rag` public functions that should remain easy to call from other modules include `search_papers(...)`, `ask_papers(...)`, `paper_query(...)`, `get_topic_summary(...)`, and `compare_papers(...)`.
+Current `paper_rag` public functions that should remain easy to call from other modules include `search_papers(...)`, `ask_papers(...)`, `paper_query(...)`, `get_topic_summary(...)`, `compare_papers(...)`, and `compare_papers_with_llm(...)`.
