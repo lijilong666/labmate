@@ -1,6 +1,6 @@
 # `paper_rag`
 
-`paper_rag` is the first core LabMate module. It provides local research paper ingestion and FAISS index building now, and will later add retrieval and question answering.
+`paper_rag` is the first core LabMate module. It provides local research paper ingestion, FAISS index building, and vector search now, and will later add question answering.
 
 ## Goal
 
@@ -19,7 +19,7 @@ The full MVP should support:
 
 ## Current Implementation
 
-The current implementation includes PDF inventory scanning, text ingestion, and local FAISS index building. It does not call an LLM.
+The current implementation includes PDF inventory scanning, text ingestion, local FAISS index building, and vector search. It does not call an LLM.
 
 It can:
 
@@ -31,6 +31,7 @@ It can:
 - Write chunk records to `paper_rag/storage/chunks.jsonl`.
 - Build a local FAISS vector index from `chunks.jsonl` using sentence-transformers.
 - Save chunk metadata alongside the FAISS index for later retrieval.
+- Search indexed chunks with a query embedding and return ranked source chunks.
 
 ## CLI Usage
 
@@ -85,6 +86,41 @@ python paper_rag/scripts/build_index.py \
 Use `--cache_dir` to choose a different model cache directory.
 
 If model loading or downloading fails, use a local model path with `--model_name`, set `--cache_dir`, or configure your own Hugging Face / ModelScope mirror source outside the code and retry.
+
+### Search Papers
+
+Search uses the existing FAISS index and the same embedding model used to build it. It returns ranked chunks only; it does not call an LLM or generate a summary.
+
+```bash
+python paper_rag/scripts/search_papers.py \
+  --query "frequency-domain features" \
+  --top_k 5 \
+  --index_dir paper_rag/storage/vector_store \
+  --model_name /path/to/local/bge-small-en-v1.5
+```
+
+On Windows, for example:
+
+```bash
+python paper_rag/scripts/search_papers.py \
+  --query "frequency-domain features" \
+  --top_k 5 \
+  --index_dir paper_rag/storage/vector_store \
+  --model_name D:\Work\models\bge-small-en-v1.5
+```
+
+Python API:
+
+```python
+from paper_rag import search_papers
+
+results = search_papers(
+    query="frequency-domain features",
+    top_k=5,
+    index_dir="paper_rag/storage/vector_store",
+    model_name="/path/to/local/bge-small-en-v1.5",
+)
+```
 
 ## Outputs
 
