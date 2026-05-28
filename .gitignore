@@ -224,6 +224,7 @@ datasets/
 *.pdf
 
 # LabMate RAG storage
+paper_rag/model_cache/
 paper_rag/storage/
 !paper_rag/storage/
 paper_rag/storage/*
