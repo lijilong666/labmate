@@ -14,4 +14,5 @@ Future work may include:
 - Summary and report generation.
 - Links between experiment findings and relevant papers from `paper_rag`.
 
-Implementation should wait until the `paper_rag` foundation is stable and the experiment workflow requirements are clearer.
+The first development plan is available in
+[`docs/experiment_agent_development_plan.md`](../docs/experiment_agent_development_plan.md).

@@ -56,4 +56,23 @@ The first architecture should be simple:
 
 Shared abstractions should be added only after both modules need them.
 
-Current `paper_rag` public functions that should remain easy to call from other modules include `search_papers(...)`, `ask_papers(...)`, `paper_query(...)`, `get_topic_summary(...)`, `compare_papers(...)`, and `compare_papers_with_llm(...)`.
+Current `paper_rag` public functions that should remain easy to call from other modules include `search_papers(...)`, `ask_papers(...)`, `cleanup_paper_cards(...)`, `paper_query(...)`, `get_topic_summary(...)`, `compare_papers(...)`, `compare_papers_with_llm(...)`, and `compare_papers_with_evidence(...)`.
+
+Stage 8B introduces `paper_rag.api` as the preferred integration surface. It exposes the callable tools above plus `TOOL_CAPABILITIES`, a lightweight registry that marks whether a tool calls an LLM, depends on FAISS, or writes local storage. This is meant to help future `experiment_agent` workflows select tools intentionally instead of guessing from script names.
+
+The workspace pipeline entry point `build_workspace(...)` orchestrates these existing components. It should remain a thin coordination layer and should not duplicate low-level stage logic.
+
+Downstream paper-card tools use shared artifact resolution: prefer `paper_cards_cleaned.jsonl`, then `paper_cards_enriched.jsonl`, then `paper_cards.jsonl` when no explicit card path is provided.
+
+## Planned Stage 7C Direction
+
+Stage 7C adds a lightweight evidence-grounded multi-paper synthesis path. The initial design:
+
+- Reuse metadata filters from Stage 7A to select papers.
+- Collect a small balanced set of supporting chunks for each selected paper.
+- Ask the LLM to compare task settings, methods, datasets, metrics, baselines, limitations, and evaluation protocols.
+- Cite evidence with paper id, page, and chunk id.
+- Include a `Comparability and Protocol Caveats` section.
+- Avoid automatic ranking or claims of direct fairness when protocols differ or are not specified.
+
+The fairness issue is important in research practice: papers may use different datasets, train/test splits, metrics, baselines, preprocessing, or cross-dataset protocols. The first Stage 7C version should surface these caveats rather than trying to solve protocol normalization deeply.

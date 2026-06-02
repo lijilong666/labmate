@@ -41,6 +41,60 @@ It can:
 
 ## CLI Usage
 
+### Build Workspace Pipeline
+
+`build_workspace.py` is the unified orchestration entry point for building local `paper_rag` artifacts. It reuses existing stage implementations instead of duplicating their logic.
+
+Run all non-LLM build stages:
+
+```bash
+python paper_rag/scripts/build_workspace.py --all --skip_existing
+```
+
+This runs:
+
+- PDF ingestion
+- FAISS index building
+- heuristic paper-card generation
+- paper-card metadata cleanup
+
+LLM enrichment is not included in `--all`; enable it explicitly because it calls the configured LLM API and may consume tokens:
+
+```bash
+python paper_rag/scripts/build_workspace.py --run_enrich --only_missing
+```
+
+Common local example with a custom embedding model:
+
+```bash
+python paper_rag/scripts/build_workspace.py \
+  --all \
+  --skip_existing \
+  --input_dir data/raw_papers \
+  --storage_dir paper_rag/storage \
+  --model_name /path/to/local/bge-small-en-v1.5
+```
+
+Use `--force` to rebuild selected stages even if outputs already exist.
+
+### Downstream Artifact Defaults
+
+Stage 8B adds shared path resolution for downstream paper-card tools. When `--cards_path` is not provided, metadata and comparison tools prefer the best available card file under `paper_rag/storage`:
+
+1. `paper_cards_cleaned.jsonl`
+2. `paper_cards_enriched.jsonl`
+3. `paper_cards.jsonl`
+
+This keeps CLI usage simple after running `build_workspace.py`, while still allowing explicit paths for reproducible tests:
+
+```bash
+python paper_rag/scripts/compare_papers.py --cards_path paper_rag/storage/paper_cards.jsonl --keyword LoRA
+```
+
+Evidence-grounded comparison uses `paper_rag/storage/vector_store/metadata.jsonl` by default. Pass `--metadata_path` to override it.
+
+For future integrations, `paper_rag.api` exposes stable callable entry points and a `TOOL_CAPABILITIES` registry describing whether each tool uses an LLM, uses FAISS, or writes local storage.
+
 ### PDF Ingestion
 
 Install PyMuPDF in the runtime environment before ingestion. The script uses PyMuPDF first and falls back to pypdf only when PyMuPDF is unavailable.
@@ -162,10 +216,11 @@ Search paper cards without vector retrieval or LLM calls:
 
 ```bash
 python paper_rag/scripts/metadata_search.py \
-  --cards paper_rag/storage/paper_cards.jsonl \
   --year 2025 \
   --venue CVPR
 ```
+
+Use `--cards` or `--cards_path` to select a specific JSONL file. If neither is provided, the shared downstream artifact default is used.
 
 Supported filters:
 
@@ -182,6 +237,8 @@ In Stage 5A, dataset, metric, and method keyword fields are often empty, so thos
 ### Compare Papers
 
 Stage 7A compares paper cards using metadata only. It does not call an LLM, load embeddings, load FAISS, use topic cache, or perform semantic matching.
+
+If `--cards_path` is omitted, the shared downstream artifact default is used.
 
 Check CLI help:
 
@@ -240,6 +297,8 @@ Use `--verbose` with Markdown output to include `baselines`, `summary`, and `lim
 ### LLM-Assisted Paper Comparison Summary
 
 Stage 7B generates a natural-language comparison summary from selected paper cards. It calls the configured LLM/API, but it still does not load embeddings, load FAISS, read PDFs, read `chunks.jsonl`, use topic cache, or perform semantic paper matching. The first version is based only on available paper-card metadata and does not provide chunk-level citations.
+
+If `--cards_path` is omitted, the shared downstream artifact default is used.
 
 Known limitation: comparison readability depends on paper-card metadata quality. If `title` or `title_guess` still comes from an arXiv-style filename or raw PDF filename, the comparison output may show weak titles. This is a metadata cleanup issue, not a comparison logic issue.
 
@@ -303,6 +362,38 @@ The LLM prompt includes only compact paper-card fields:
 
 The summary should reference papers by `paper_id` only and should explicitly note when information is not specified in the available paper cards.
 
+### Evidence-Grounded Paper Comparison
+
+Stage 7C generates a lightweight cited multi-paper comparison. It reuses Stage 7A filters to select papers, collects a small balanced set of evidence chunks per selected paper from chunk metadata, and calls the configured LLM/API to produce a Markdown comparison with paper/page/chunk evidence ids.
+
+If `--cards_path` is omitted, the shared downstream artifact default is used. If `--metadata_path` is omitted, the default is `paper_rag/storage/vector_store/metadata.jsonl`.
+
+This first version is intentionally conservative: it surfaces comparability and protocol caveats, but it does not perform rigorous fairness judgment, automatic ranking, semantic paper matching, topic-cache integration, or deep protocol normalization.
+
+Check CLI help:
+
+```bash
+python paper_rag/scripts/compare_papers_evidence.py --help
+```
+
+Compare selected papers with evidence:
+
+```bash
+python paper_rag/scripts/compare_papers_evidence.py --year 2025 --limit 3 --chunks_per_paper 2 --answer_language en --llm_timeout 60
+```
+
+Use a custom comparison focus:
+
+```bash
+python paper_rag/scripts/compare_papers_evidence.py --keyword localization --limit 3 --chunks_per_paper 2 --question "Compare task settings, method designs, datasets, metrics, baselines, limitations, and protocol caveats." --answer_language en --llm_timeout 60
+```
+
+Write the Markdown summary to a local file:
+
+```bash
+python paper_rag/scripts/compare_papers_evidence.py --paper_id p000005 p000006 --chunks_per_paper 2 --output paper_rag/storage/comparisons/evidence_compare.md --llm_timeout 60
+```
+
 ### Enrich Paper Cards
 
 Stage 5B enriches existing paper cards with an OpenAI-compatible LLM. It reads limited chunks for each paper and asks the LLM to extract only evidence-supported metadata:
@@ -354,6 +445,40 @@ Optional overrides:
 - `--only_missing`: fill empty fields without overwriting existing non-empty values.
 
 If an LLM response cannot be parsed as JSON, the batch continues and the card is marked with `enrichment_status="failed"` and an `enrichment_error` message.
+
+### Clean Paper Card Metadata
+
+Stage 5C cleans weak paper-card title metadata without reading PDFs, calling an LLM, loading embeddings, or loading FAISS. It detects filename-like titles such as arXiv ids or raw PDF filenames, replaces them with better existing card fields or cleaned file-name titles when possible, and marks unresolved cases as `needs_review`.
+
+Run cleanup:
+
+```bash
+python paper_rag/scripts/cleanup_paper_cards.py \
+  --cards paper_rag/storage/paper_cards.jsonl \
+  --output paper_rag/storage/paper_cards_cleaned.jsonl
+```
+
+Use manual title overrides for problematic papers:
+
+```json
+{
+  "p000005": "SAFIRE: Segment Any Forged Image Region",
+  "p000006": "Re-MTKD: Reliable Multi-Teacher Knowledge Distillation for Image Forgery Detection"
+}
+```
+
+```bash
+python paper_rag/scripts/cleanup_paper_cards.py \
+  --cards paper_rag/storage/paper_cards.jsonl \
+  --output paper_rag/storage/paper_cards_cleaned.jsonl \
+  --title_overrides path/to/title_overrides.json
+```
+
+Cleanup adds metadata such as:
+
+- `title_original`
+- `title_cleanup_status`: `updated`, `unchanged`, or `needs_review`
+- `title_cleanup_reason`
 
 ### Ask Papers
 
@@ -588,6 +713,11 @@ Supported topic cache arguments:
 - `limitations`
 - `status`
 - `extraction_mode`
+
+Downstream tools may also read:
+
+- `paper_cards_enriched.jsonl`: LLM-enriched paper cards.
+- `paper_cards_cleaned.jsonl`: metadata-cleaned paper cards, preferred by default when present.
 
 `query_cache.jsonl` fields:
 

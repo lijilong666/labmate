@@ -43,7 +43,18 @@ The `paper_rag` module should eventually support:
 - Multi-paper comparison.
 - Simple Python APIs for future use by `experiment_agent`.
 
-Current implemented `paper_rag` capabilities include ingestion, FAISS index building, vector search, evidence-based QA, heuristic paper cards, LLM-assisted paper card enrichment, metadata search, rule-based query routing, exact query cache, topic cache, metadata-based multi-paper comparison, and LLM-assisted comparison summaries over paper cards.
+Current implemented `paper_rag` capabilities include ingestion, FAISS index building, vector search, evidence-based QA, heuristic paper cards, LLM-assisted paper card enrichment, rule-based paper-card metadata cleanup, metadata search, rule-based query routing, exact query cache, topic cache, metadata-based multi-paper comparison, LLM-assisted comparison summaries over paper cards, lightweight evidence-grounded multi-paper synthesis, a unified workspace build pipeline, shared artifact path resolution, and a public API/capability registry for future integrations.
+
+Stage 8B adds shared downstream artifact defaults and a public integration module:
+
+- `paper_rag.paths.resolve_cards_path(...)` prefers cleaned cards, then enriched cards, then raw cards when no explicit path is passed.
+- `paper_rag.paths.resolve_chunk_metadata_path(...)` resolves the default chunk metadata file for evidence-grounded tools.
+- `paper_rag.api` exposes stable callable entry points and `TOOL_CAPABILITIES` for future `experiment_agent` tool selection.
+
+Personal Chinese study notes exist under `docs/`:
+
+- `docs/paper_rag_interview_knowledge_base.md`: interview-oriented explanation of the full `paper_rag` development process through Stage 8B.
+- `docs/rag_upgrade_roadmap_zh.md`: post-baseline RAG upgrade roadmap covering quality, evaluation, evidence, protocol comparison, cache, and experiment-agent integration.
 
 ## `paper_rag` Storage
 
@@ -67,6 +78,16 @@ The system should not call the LLM for every query. Use this priority order:
 4. LLM answer generation
 
 The goal is to reduce token cost and improve answer stability.
+
+Downstream paper-card tools should use the shared artifact default unless the user or caller passes an explicit path. Preferred order:
+
+1. `paper_cards_cleaned.jsonl`
+2. `paper_cards_enriched.jsonl`
+3. `paper_cards.jsonl`
+
+## Workspace Build Pipeline
+
+Stage 8A adds a lightweight orchestration layer for building a local `paper_rag` workspace. It connects existing stage functions rather than reimplementing them. `--all` runs non-LLM stages only: ingestion, FAISS indexing, heuristic paper-card generation, and metadata cleanup. LLM enrichment remains explicit through `--run_enrich` to avoid accidental token usage.
 
 ## Suggested `paper_card` Schema
 
@@ -117,6 +138,14 @@ Experiment analysis records should be stored on the `experiment_agent` side, not
 `paper_rag` should store stable literature knowledge. Experiment analysis should store references to RAG sources when RAG evidence is used.
 
 For future integration, keep `paper_rag` callable through small Python functions with structured inputs and outputs. Scripts under `paper_rag/scripts/` are for human CLI usage; the future LangGraph-based experiment workflow should call core APIs from `paper_rag/src/paper_rag/`.
+
+The preferred integration module is `paper_rag.api`; use `TOOL_CAPABILITIES` to avoid accidentally calling token-consuming or FAISS-dependent tools.
+
+## Multi-Paper Comparison Fairness Caveat
+
+Multi-paper comparison in scientific workflows is sensitive to evaluation protocol differences. A comparison can be misleading if papers use different datasets, train/test splits, metrics, baselines, preprocessing, robustness tests, or cross-dataset protocols.
+
+Stage 7C implements a lightweight evidence-grounded comparison that collects balanced evidence chunks per selected paper and cites them. It includes explicit caveats about comparability and protocol differences, but it should not rank papers or claim fairness unless protocols are clearly aligned. Rigorous protocol normalization is a later research-quality evaluation task, not part of the first Stage 7C implementation.
 
 ## Deployment Assumptions
 

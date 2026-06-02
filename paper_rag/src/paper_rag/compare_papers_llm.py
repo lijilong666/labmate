@@ -8,7 +8,6 @@ from typing import Any
 from paper_rag.cli_io import configure_utf8_stdio
 from paper_rag.compare_papers import compare_papers, format_value
 from paper_rag.llm_client import DEFAULT_LLM_TIMEOUT, OpenAICompatibleClient
-from paper_rag.paper_cards import DEFAULT_PAPER_CARDS_PATH
 from paper_rag.qa import resolve_answer_language
 
 
@@ -97,7 +96,7 @@ def generate_comparison_summary(
 
 
 def compare_papers_with_llm(
-    cards_path: str | Path = DEFAULT_PAPER_CARDS_PATH,
+    cards_path: str | Path | None = None,
     keyword: str | None = None,
     dataset: str | None = None,
     metric: str | None = None,
@@ -151,7 +150,15 @@ def write_summary(summary: str, output_path: str | Path | None) -> None:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Generate an LLM-assisted summary from selected paper cards.")
-    parser.add_argument("--cards_path", type=Path, default=DEFAULT_PAPER_CARDS_PATH, help="Paper cards JSONL path.")
+    parser.add_argument(
+        "--cards_path",
+        type=Path,
+        default=None,
+        help=(
+            "Paper cards JSONL path. Defaults to the best available file under paper_rag/storage: "
+            "paper_cards_cleaned.jsonl, paper_cards_enriched.jsonl, then paper_cards.jsonl."
+        ),
+    )
     parser.add_argument("--keyword", default=None, help="Case-insensitive keyword filter.")
     parser.add_argument("--dataset", default=None, help="Case-insensitive dataset filter.")
     parser.add_argument("--metric", default=None, help="Case-insensitive metric filter.")
