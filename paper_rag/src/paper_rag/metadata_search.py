@@ -6,13 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from paper_rag.cli_io import configure_utf8_stdio
-from paper_rag.paper_cards import DEFAULT_PAPER_CARDS_PATH
+from paper_rag.paths import resolve_cards_path
 
 
-def load_paper_cards(cards_path: str | Path = DEFAULT_PAPER_CARDS_PATH) -> list[dict[str, Any]]:
-    path = Path(cards_path)
-    if not path.exists():
-        raise FileNotFoundError(f"Paper cards file not found: {path}")
+def load_paper_cards(cards_path: str | Path | None = None) -> list[dict[str, Any]]:
+    path = resolve_cards_path(cards_path)
 
     cards: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as file:
@@ -38,7 +36,7 @@ def list_contains(values: object, needle: str) -> bool:
 
 
 def search_paper_cards(
-    cards_path: str | Path = DEFAULT_PAPER_CARDS_PATH,
+    cards_path: str | Path | None = None,
     year: int | str | None = None,
     venue: str | None = None,
     keyword: str | None = None,
@@ -90,7 +88,17 @@ def format_card(card: dict[str, Any]) -> str:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Search heuristic paper cards by metadata.")
-    parser.add_argument("--cards", type=Path, default=DEFAULT_PAPER_CARDS_PATH, help="Paper cards JSONL path.")
+    parser.add_argument(
+        "--cards",
+        "--cards_path",
+        dest="cards_path",
+        type=Path,
+        default=None,
+        help=(
+            "Paper cards JSONL path. Defaults to the best available file under paper_rag/storage: "
+            "paper_cards_cleaned.jsonl, paper_cards_enriched.jsonl, then paper_cards.jsonl."
+        ),
+    )
     parser.add_argument("--year", default=None, help="Filter by year, for example 2025.")
     parser.add_argument("--venue", default=None, help="Filter by venue, for example CVPR.")
     parser.add_argument("--keyword", default=None, help="Filter by method keyword or title text.")
@@ -108,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         results = search_paper_cards(
-            cards_path=args.cards,
+            cards_path=args.cards_path,
             year=args.year,
             venue=args.venue,
             keyword=args.keyword,
