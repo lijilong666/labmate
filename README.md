@@ -18,7 +18,7 @@ citations, and carry useful context across sessions without treating memory as e
 
 <br/>
 
-<img src="figures/labmate-rag-memory-concept.png" alt="LabMate Paper RAG and Agent Memory concept" width="100%" />
+<img src="figures/labmate-rag-memory-concept.png" alt="LabMate logo — Paper RAG and Agent Memory" width="24%" />
 
 </div>
 
