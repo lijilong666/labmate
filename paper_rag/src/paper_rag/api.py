@@ -65,10 +65,13 @@ TOOL_CAPABILITIES: dict[str, dict[str, Any]] = {
     "paper_query": {
         "stage": "6A",
         "reads": ["paper_rag/storage"],
-        "writes": ["paper_rag/storage/query_cache.jsonl"],
+        "writes": ["paper_rag/storage/query_cache.jsonl", "paper_rag/storage/memory.sqlite3 (optional)"],
         "uses_llm": "answer mode only",
         "uses_faiss": "search/answer modes only",
-        "description": "Unified metadata/search/answer entry point with exact query cache.",
+        "description": (
+            "Unified metadata/search/answer entry point with revision-aware exact cache, optional session memory, "
+            "and per-stage observability timings."
+        ),
     },
     "get_topic_summary": {
         "stage": "6B",
