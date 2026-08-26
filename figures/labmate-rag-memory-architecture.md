@@ -1,0 +1,47 @@
+# LabMate RAG and Memory Architecture
+
+Local paper ingestion, evidence-grounded RAG, and the separate evidence-aware Agent Memory lifecycle.
+
+```mermaid
+flowchart LR
+    subgraph Build[Local Knowledge Build]
+        PDF[Research PDFs] --> INGEST[Page-aware ingestion]
+        INGEST --> CHUNKS[Chunk store]
+        CHUNKS --> EMBED[BGE embeddings]
+        EMBED --> FAISS[(FAISS index)]
+        INGEST --> CARDS[Paper cards]
+    end
+
+    Q[User query] --> ROUTER{Query router}
+    CARDS --> ROUTER
+    FAISS --> ROUTER
+    ROUTER -->|metadata| META[Metadata search]
+    ROUTER -->|search| RETRIEVE[Chunk retrieval]
+    ROUTER -->|answer| QA[Evidence-grounded QA]
+    RETRIEVE --> QA
+    QA --> ANSWER[Answer + citations]
+
+    subgraph Memory[Evidence-Aware Agent Memory]
+        SQLITE[(SQLite + FTS5)] --> RECALL[Recall + deterministic ranking]
+        RECALL --> CONTEXT[Token-budgeted memory context]
+        POLICY[Deterministic write policy] --> SQLITE
+        CONSOLIDATE[Offline consolidation] --> SQLITE
+    end
+
+    Q --> RECALL
+    CONTEXT -. preferences / task context .-> ROUTER
+    ANSWER --> POLICY
+    CACHE[(Revision-aware cache)] <--> ROUTER
+
+    classDef input fill:#ECFDF5,stroke:#10B981,color:#064E3B,stroke-width:2px
+    classDef storage fill:#EEF2FF,stroke:#4F46E5,color:#312E81,stroke-width:2px
+    classDef process fill:#EFF6FF,stroke:#2563EB,color:#1E3A8A,stroke-width:2px
+    classDef memory fill:#F5F3FF,stroke:#7C3AED,color:#4C1D95,stroke-width:2px
+    classDef output fill:#FFF7ED,stroke:#EA580C,color:#7C2D12,stroke-width:2px
+
+    class PDF,Q input
+    class CHUNKS,FAISS,CARDS,SQLITE,CACHE storage
+    class INGEST,EMBED,ROUTER,META,RETRIEVE,QA process
+    class RECALL,CONTEXT,POLICY,CONSOLIDATE memory
+    class ANSWER output
+```
