@@ -598,6 +598,33 @@ Exact query cache:
 - Use `--llm_timeout` to limit LLM calls in `answer` mode. Default: `60` seconds.
 - `query_cache.jsonl` is under `paper_rag/storage/` and should not be committed.
 
+Optional memory-aware query:
+
+```bash
+python paper_rag/scripts/paper_query.py \
+  --query "continue comparing those papers" \
+  --mode answer \
+  --memory true \
+  --project_id default-project \
+  --session_id comparison-001 \
+  --memory_top_k 6 \
+  --memory_token_budget 800 \
+  --memory_db paper_rag/storage/memory.sqlite3 \
+  --index_dir paper_rag/storage/vector_store \
+  --model_name /path/to/local/bge-small-en-v1.5
+```
+
+When memory is enabled, the router creates the session if needed, recalls task state and user preferences, builds a
+separate non-evidence memory context, contextualizes retrieval with relevant active task state, runs the existing
+metadata/search/answer path, and appends an episode with paper-card or paper-chunk source pointers. Failed RAG calls
+are also recorded as failed episodes without replacing the original exception.
+
+Memory-aware cache entries use schema version 2 and include project, session, post-episode `memory_revision`, paper
+artifact revision, and a request-options fingerprint. A cache hit does not append another episode, so the cache does
+not invalidate itself. Changes to task/user memory, session, paper index/cards, Top-K, model, language, rewrite
+settings, contextualized query, or memory budget cause a cache miss. Legacy query-only JSONL records remain readable
+through the low-level cache API but are intentionally not reused by `paper_query`'s versioned lookup.
+
 ### Topic Cache
 
 `topic_cache.py` stores stable topic-level RAG summaries for repeated domain questions. It uses exact topic keys only. It does not implement semantic cache, automatic topic mining, or LLM-based routing.
@@ -664,6 +691,261 @@ Supported topic cache arguments:
 
 `topic_cache.jsonl` is under `paper_rag/storage/` and should not be committed.
 
+## Lightweight Memory Storage
+
+`paper_rag.memory` provides the storage and policy layer used by the optional memory-aware `paper_query` flow.
+Memory remains opt-in, so existing retrieval and QA behavior is unchanged when `--memory false`.
+
+The default database is `paper_rag/storage/memory.sqlite3`. SQLite is the source of truth and FTS5 supplies the
+initial lexical retrieval baseline. The storage layer supports:
+
+- session state and a monotonic `memory_revision`;
+- `task_state`, `user_fact`, and `episode` memories;
+- user, paper-card, paper-chunk, and episode source references;
+- active, superseded, and archived lifecycle states;
+- append-and-supersede history instead of destructive overwrite;
+- project/session/type/status filters and FTS5 search;
+- schema migrations and transactional writes.
+
+Python API example:
+
+```python
+from paper_rag.memory import MemorySource, MemoryStore
+
+store = MemoryStore()
+store.create_session("rag-session-001", "default-project")
+
+memory = store.add_memory(
+    kind="user_fact",
+    canonical_key="answer_language",
+    content="The user prefers Chinese answers.",
+    project_id="default-project",
+    session_id="rag-session-001",
+    sources=[MemorySource(source_type="user")],
+)
+
+results = store.search_memories(
+    "Chinese answers",
+    project_id="default-project",
+    statuses=["active"],
+)
+```
+
+Paper-derived memories can retain evidence pointers with `MemorySource(source_type="paper_chunk", paper_id=...,
+page_number=..., chunk_id=..., source_path=...)`. Evidence-write policy and automatic episode recording belong to
+the deterministic writer layer. This layer does not use an LLM; `paper_query` invokes it after memory-enabled tasks.
+
+```python
+from paper_rag.memory import MemoryWriter
+
+writer = MemoryWriter(store)
+
+writer.remember_user_fact(
+    canonical_key="answer_language",
+    content="The user prefers Chinese answers.",
+    project_id="default-project",
+    session_id="rag-session-001",
+    explicit_user_request=True,
+)
+
+writer.record_rag_episode(
+    query="Explain the method.",
+    route="answer",
+    outcome="success",
+    result_summary="The paper uses frequency features.",
+    project_id="default-project",
+    session_id="rag-session-001",
+    retrieved_sources=[
+        MemorySource(
+            source_type="paper_chunk",
+            paper_id="p000001",
+            page_number=4,
+            chunk_id="p000001-c0003",
+        )
+    ],
+    contains_research_claims=True,
+)
+```
+
+Deterministic write rules currently enforce the following boundaries:
+
+- unclassified interactions and implicit preferences produce `NOOP`;
+- stable user facts require an explicit remember request and a user source;
+- conflicting values require an explicit correction and preserve the superseded record;
+- repeated facts, unchanged task state, identical corrections, and repeated archives produce `NOOP`;
+- task state changes use append-and-supersede versioning;
+- completed RAG tasks are stored as episodes, not silently promoted to stable facts;
+- successful answer/compare summaries and explicit research claims require paper-chunk evidence;
+- forgetting archives records instead of physically deleting them.
+
+Memory retrieval is also available as a standalone layer:
+
+```python
+from paper_rag.memory import (
+    MemoryContextBuilder,
+    MemoryContextConfig,
+    MemoryRetrievalConfig,
+    MemoryRetriever,
+)
+
+retriever = MemoryRetriever(store)
+builder = MemoryContextBuilder(retriever)
+
+packet = builder.build(
+    "continue comparing the selected papers",
+    project_id="default-project",
+    session_id="rag-session-001",
+    config=MemoryContextConfig(
+        token_budget=800,
+        retrieval=MemoryRetrievalConfig(
+            top_k=6,
+            candidate_k=50,
+            kinds=("task_state", "user_fact", "episode"),
+        ),
+    ),
+)
+print(packet.text)
+```
+
+The retriever uses FTS5 with a dependency-free CJK substring fallback, then filters by project, session, type,
+lifecycle, observation time, and validity interval. Session recall can see the current session plus project-global
+memory, while recall without a session sees project-global memory only. Final ranking combines lexical rank, scope,
+confidence, importance, source quality, and recency. Every result exposes its score components and recall reasons.
+The context builder enforces a fixed approximate token budget and marks truncated entries. Its header explicitly
+states that memory may guide query interpretation and preferences but is not citable paper evidence.
+
+### Memory management CLI
+
+Use `memory_cli.py` to inspect and explicitly manage the SQLite memory source of truth. Every command emits JSON.
+
+```bat
+python paper_rag/scripts/memory_cli.py list ^
+  --project_id default-project ^
+  --session_id rag-session-001
+
+python paper_rag/scripts/memory_cli.py search "frequency features" ^
+  --project_id default-project ^
+  --session_id rag-session-001 ^
+  --include_global
+
+python paper_rag/scripts/memory_cli.py show MEMORY_ID
+
+python paper_rag/scripts/memory_cli.py add ^
+  --project_id default-project ^
+  --session_id rag-session-001 ^
+  --kind user_fact ^
+  --key answer_language ^
+  --content "The user prefers Chinese answers."
+
+python paper_rag/scripts/memory_cli.py correct MEMORY_ID ^
+  --project_id default-project ^
+  --session_id rag-session-001 ^
+  --content "The user prefers English answers."
+
+python paper_rag/scripts/memory_cli.py archive MEMORY_ID ^
+  --project_id default-project ^
+  --session_id rag-session-001
+```
+
+`update` is an alias for `correct`. Corrections are limited to active `user_fact` records and create a new version;
+archives retain the record and its provenance. Scope checks prevent a command from changing memory in another
+project or session. Repeat `--kind` or `--status` to select multiple values.
+
+Offline consolidation is deterministic and dry-run by default:
+
+```bat
+python paper_rag/scripts/memory_cli.py consolidate ^
+  --project_id default-project ^
+  --session_id rag-session-001
+
+python paper_rag/scripts/memory_cli.py consolidate ^
+  --project_id default-project ^
+  --session_id rag-session-001 ^
+  --apply
+```
+
+The dry run reports exact duplicate episode groups and the proposed session summary without changing SQLite.
+`--apply` keeps the newest episode in each exact structured duplicate group, archives the older copies, and writes
+route/outcome counts, evidence coverage, and recent queries to `session.state.memory_consolidation`. Different paper
+chunk evidence is never treated as a duplicate. This version intentionally performs zero automatic fact promotions:
+an answer summary cannot silently become a stable research fact.
+
+### Memory evaluation and observability
+
+`memory_eval.py` runs offline and never calls an LLM. Audit the current memory database with:
+
+```bat
+python paper_rag/scripts/memory_eval.py audit ^
+  --db paper_rag/storage/memory.sqlite3 ^
+  --project_id default-project
+```
+
+The audit reports lifecycle/provenance violations, multiple active versions of one canonical key, exact active
+duplicates, the memory redundancy ratio, and whether the scan reached its configured limit.
+
+Retrieval benchmarks are JSONL. Each case must provide exactly one relevance representation: memory IDs or
+canonical keys. `forbidden_memory_ids` identifies stale or otherwise harmful memories that must not be recalled.
+
+```json
+{"case_id":"language","query":"Which language should you answer in?","project_id":"default-project","session_id":"rag-session-001","relevant_canonical_keys":["answer_language"],"forbidden_memory_ids":[]}
+```
+
+```bat
+python paper_rag/scripts/memory_eval.py retrieval ^
+  --db paper_rag/storage/memory.sqlite3 ^
+  --benchmark memory_benchmark.jsonl ^
+  --top_k 6 ^
+  --candidate_k 50
+```
+
+The report includes Memory Recall@K, Precision@K, MRR, nDCG@K, stale-memory error rate, stale-case rate, and
+per-case returned IDs. Use fixed database snapshots when comparing retrieval configurations.
+
+For memory on/off comparisons, save one JSONL file per variant. Records are paired by `case_id`; supported numeric
+fields are `task_success`, `latency_ms`, `token_count`, `citation_accuracy`, and `answer_faithfulness`.
+
+```json
+{"case_id":"q001","task_success":true,"latency_ms":820.4,"token_count":640,"citation_accuracy":1.0,"answer_faithfulness":0.9}
+```
+
+```bat
+python paper_rag/scripts/memory_eval.py compare ^
+  --baseline results_memory_off.jsonl ^
+  --candidate results_memory_on.jsonl
+```
+
+Only paired cases with numeric values contribute to each metric, and the report exposes unpaired case IDs. Positive
+deltas mean the candidate value is larger; whether that is desirable depends on the metric (higher success is good,
+higher latency is not).
+
+Every `paper_query` response also contains an `observability` object with total latency, memory preparation, cache
+lookup, RAG execution, memory write, and cache write timings, plus result count, recalled-memory count, and estimated
+memory-context tokens. These measurements are diagnostic wall-clock timings, not a substitute for repeated benchmark
+runs with warm-up and fixed inputs.
+
+### Deterministic scale testing
+
+`memory_scale_test.py` builds a disposable synthetic database and exercises multi-session writes, corrections,
+archives, duplicate consolidation, retrieval evaluation, scope isolation, and the final audit. With no `--db`, the
+database is created under the system temporary directory and automatically removed. A supplied `--db` must not
+already exist, so the command cannot overwrite an existing memory database.
+
+```bat
+python paper_rag/scripts/memory_scale_test.py ^
+  --sessions 100 ^
+  --facts_per_session 50 ^
+  --episodes_per_session 15 ^
+  --duplicate_pairs_per_session 3 ^
+  --global_facts 100 ^
+  --queries 1000 ^
+  --top_k 6 ^
+  --seed 20260826
+```
+
+The JSON report includes configuration, database size, memory/session/query counts, retrieval metrics, invariant
+checks, stage timings, audit health, and approximate operations per second. The workload uses public memory APIs and
+real SQLite/FTS5 operations; it does not sleep, mock storage, or call an LLM.
+
 ## Outputs
 
 `paper_inventory.csv` fields:
@@ -726,6 +1008,16 @@ Downstream tools may also read:
 - `answer`
 - `results`
 - `created_at`
+- `cache_schema_version` (`2` for versioned entries)
+- `project_id`
+- `session_id`
+- `memory_revision`
+- `paper_revision`
+- `request_fingerprint`
+
+Runtime `paper_query` responses additionally contain `observability.total_ms`, `observability.stages_ms`,
+`observability.result_count`, `observability.recalled_memory_count`, and
+`observability.memory_context_estimated_tokens`.
 
 `topic_cache.jsonl` fields:
 
